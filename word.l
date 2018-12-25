@@ -23,8 +23,8 @@ xor|and|or|not {   return sign_table[yytext]; }
 if|for|while|do|return|int|long|char|bool|string|float {  return sign_table[yytext];  }
 cin|cout|endl {  return sign_table[yytext];  }
 \"|\' {  return sign_table[yytext];  }
-\/\/[^\n]* { cout<<setw(15)<<"COMMENT"<<setw(15)<<yytext<<endl; }
-\/\*(\*+[^\/]|[^\*\/])*\*\/ {cout<<setw(15)<<"COMMENTBLOCK"<<setw(15)<<yytext<<endl; }
+\/\/[^\n]* { cout<<"COMMENT"<<setw(15)<<yytext<<endl; }
+\/\*(\*+[^\/]|[^\*\/])*\*\/ {cout<<"COMMENTBLOCK"<<setw(15)<<yytext<<endl; }
 \/\/|\/\*|\*\/ {  return sign_table[yytext]; }
 [a-zA-Z_]([a-zA-Z0-9_])* { if(!ID_table.count(yytext)) ID_table[yytext] = ++ID_label; ID_str.push(yytext); return ID; }
 \"([^\"]|\\\")*\" { ID_str.push(yytext);  return STRING; }

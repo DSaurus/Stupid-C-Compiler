@@ -292,10 +292,10 @@ void generate(string com){
 
 
 void dfs_ID(int x){
-	cerr<<"id:"<<x<<endl;
 	string tree_str = treeNode[x].value;
 	if(tree_str.find("symbol-") != -1){
 		Ids_table[tree_str].addr = ++ID_ADDR;
+		cerr<<tree_str<<" "<<4*ID_ADDR<<endl;
 	}
 	for(auto to : G[x]){
 		if(to < 0) continue;
@@ -304,7 +304,6 @@ void dfs_ID(int x){
 }
 
 void dfs_expr(int x){
-	cerr<<"expr:"<<x<<" "<<treeNode[x].value<<endl;
 	string tree_str = treeNode[x].value;
 	
 	for(auto to : G[x]){
@@ -330,7 +329,6 @@ void dfs_expr(int x){
 	if(G[x].size() >= 2){
 		int a = G[x][0], b = G[x][2];
 		a = treeNode[a].addr; b = treeNode[b].addr;
-		cerr<<a<<" "<<b<<endl;
 		if(tree_str == "Mul Expr"){
 			generate("movl", b, 0, "%eax", 1);
 			generate("imull", a, 0, "%eax", 1);
@@ -403,7 +401,6 @@ void dfs_expr(int x){
 }
 
 void dfs_generate(int x){
-	cerr<<"gen:"<<x<<endl;
 	string tree_str = treeNode[x].value;
 	if(tree_str == "ID Stmt"){
 		dfs_ID(x);

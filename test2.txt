@@ -1,0 +1,9 @@
+main(){
+  int a, b;
+  //scanf("%d", &a);
+  i = 1;
+  b = 1;
+  for(int i; i <= a; i = i+1)
+     b = b*i;
+  //printf("%d", b);
+}
