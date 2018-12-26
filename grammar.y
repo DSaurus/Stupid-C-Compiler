@@ -1,6 +1,7 @@
 %{
 #include <stdio.h>
 #include <iostream>
+#include <sstream>
 #include <map>
 #include <vector>
 #define YYSTYPE int
@@ -41,7 +42,9 @@ struct Ids{
 };
 map<string, Ids> Ids_table;
 map<int, int> invIds_table;
-int ID_ADDR = 0, LABEL = 0, TEMP_ID = 0;
+int ID_ADDR = 0, LABEL = 0, TEMP_ID = 0, MAX_ID = 0;
+
+stringstream ssout("");
 
 void yyerror(const char* msg) {}
 int yylex();
@@ -89,7 +92,7 @@ func : type ID SL var_list SR cp_stmt  {
 	 | ID SL var_list SR cp_stmt {  
 		 	$$ = ++tot; treeNode[tot].value = "Function";
 			$1 = ++tot; treeNode[tot].value = "symbol-" + get_ID();
-			add_edge($$, {$1, $3, $5}); 
+			add_edge($$, {-1, $1, $3, $5}); 
 	  	}
 	 ;
 
@@ -271,7 +274,7 @@ void dfs_type_error(int x, int type){
 }
 
 void generate(string com, string a, int aty, string b, int bty){
-	cout<<com <<" "<< (aty ? a : "-" + a + "(%rbp)")<<","<<(bty ? b : "-" + b + "(%rbp)")<<endl;
+	ssout<<com <<" "<< (aty ? a : "-" + a + "(%rbp)")<<","<<(bty ? b : "-" + b + "(%rbp)")<<endl;
 }
 void generate(string com, int a, int aty, int b, int bty){
 	generate(com, to_string(a*4), aty, to_string(b*4), bty);
@@ -283,13 +286,13 @@ void generate(string com, string a, int aty, int b, int bty){
 	generate(com, a, aty, to_string(b*4), bty);
 }
 void generate(string com, string a, int aty){
-	cout<<com<<" "<<(aty ? a : "-" + a + "(%rbp)")<<endl;
+	ssout<<com<<" "<<(aty ? a : "-" + a + "(%rbp)")<<endl;
 }
 void generate(string com, int a, int aty){
 	generate(com,  to_string(a*4), aty);
 }
 void generate(string com){
-	cout<<com<<endl;
+	ssout<<com<<endl;
 }
 
 
@@ -316,7 +319,7 @@ void dfs_expr(int x){
 			son = to;
 		}
 	}
-	if(son == -1) treeNode[x].addr = ID_ADDR + (++TEMP_ID);
+	if(son == -1) { treeNode[x].addr = ID_ADDR + (++TEMP_ID); MAX_ID = max(MAX_ID, treeNode[x].addr); }
 	else treeNode[x].addr = treeNode[son].addr;
 	if(tree_str == "Blank Expr"){
 		generate("movl", "$1", 1, treeNode[x].addr, 0);
@@ -468,6 +471,29 @@ void dfs_generate(int x){
 	}
 }
 
+void dfs_function(int x){
+	string tree_str = treeNode[x].value;
+	if(tree_str == "Function"){
+		cerr<<"hello!"<<endl;
+		generate(".L" + treeNode[G[x][1]].value.substr(7, treeNode[G[x][1]].value.length() - 7) + ":");
+		generate("pushq %rbp");
+		generate("movq %rsp, %rbp");
+		cout<<ssout.str(); ssout.str("");
+		MAX_ID = ID_ADDR = 0;
+		dfs_ID(G[x][2]);
+		dfs_generate(G[x][3]);	
+		cout<<"subq $" + to_string(MAX_ID*4 + 4) + ", %rsp"<<endl;
+		cout<<ssout.str(); ssout.str("");
+		cout<<"popq %rbp"<<endl;
+		cout<<"ret"<<endl;
+	} else {
+		for(auto to : G[x]){
+			if(to < 0) continue;
+			dfs_function(to);
+		}
+	}
+}
+
 int main() {
 	init_pre_table();
 	yyparse();
@@ -475,7 +501,7 @@ int main() {
 	//freopen("tree.txt", "w", stdout);
 	//dfs(root, 0);
 	freopen("asm.txt", "w", stdout);
-	dfs_generate(root);
+	dfs_function(root);
 	freopen("/dev/console", "w", stdout);
 	cout<<tot<<endl;
 	/*for(int i = 1; i <= tot; i++){
