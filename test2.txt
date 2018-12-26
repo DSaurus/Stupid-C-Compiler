@@ -1,5 +1,5 @@
 int mul(int a, int b){
-  a = a*b;
+  return a*b;
 }
 
 main(){
@@ -10,4 +10,5 @@ main(){
   for(; i <= a; i = i+1)
      b = b*i;
   //printf("%d", b);
+  return 0;
 }
