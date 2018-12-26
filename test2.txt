@@ -1,9 +1,13 @@
+int mul(int a, int b){
+  a = a*b;
+}
+
 main(){
   int a, b, i;
   //scanf("%d", &a);
   i = 1;
   b = 1;
-  for(int t; i <= a; i = i+1)
+  for(; i <= a; i = i+1)
      b = b*i;
   //printf("%d", b);
 }
