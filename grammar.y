@@ -117,6 +117,7 @@ if_stmt : IF SL expr SR stmt { $$ = ++tot; treeNode[tot].value = "If Stmt"; add_
 		;
 
 for_stmt : FOR SL id_stmt expr_stmt expr SR stmt { $$ = ++tot; treeNode[tot].value = "For Stmt"; add_edge($$, {$3, $4, $5, $7}); }
+	     | FOR SL expr_stmt expr_stmt expr SR stmt { $$ = ++tot; treeNode[tot].value = "For Stmt"; add_edge($$, {$3, $4, $5, $7}); }
 		 ;
 
 while_stmt : WHILE SL expr SR stmt { $$ = ++tot; treeNode[tot].value = "While Stmt"; add_edge($$, {$3, $5}); }
@@ -318,7 +319,7 @@ void dfs_expr(int x){
 	if(son == -1) treeNode[x].addr = ID_ADDR + (++TEMP_ID);
 	else treeNode[x].addr = treeNode[son].addr;
 	if(tree_str == "Blank Expr"){
-		generate("MOV", treeNode[x].addr, 0, "0", 0);
+		generate("movl", "$1", 1, treeNode[x].addr, 0);
 	} else 
 	if(tree_str.find("symbol-") != -1){
 		--TEMP_ID;
