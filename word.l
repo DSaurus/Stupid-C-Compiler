@@ -20,7 +20,7 @@ xor|and|or|not {   return sign_table[yytext]; }
 &&|\|\||! {   return sign_table[yytext]; }
 \'.\' {  return sign_table[yytext]; }
 
-if|for|while|do|return|int|long|char|bool|string|float {  return sign_table[yytext];  }
+if|for|while|do|return|int|long|char|bool|string|float|return {  return sign_table[yytext];  }
 cin|cout|endl {  return sign_table[yytext];  }
 \"|\' {  return sign_table[yytext];  }
 \/\/[^\n]* { cout<<"COMMENT"<<setw(15)<<yytext<<endl; }
@@ -105,6 +105,7 @@ void init_pre_table(){
     //sign_table["char"] = CHAR;
     sign_table["string"] = TSTRING;
     sign_table["float"] = FLOAT;
+    sign_table["return"] = RETURN;
     //sign_table["bool"] = "BOOL";
     //sign_table["\""] = "DOUBLEQUATE";
     // sign_table["\'"] = "SINGLEQUATE";

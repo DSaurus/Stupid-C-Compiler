@@ -71,7 +71,8 @@ void add_edge(int x, vector<int> y){
 %token IF ELSE FOR WHILE
 %token SEMI COMMA
 %token ASSIGN
-%token EQUAL NOTEQUAL LESS LESSORE MORE MOREORE 
+%token EQUAL NOTEQUAL LESS LESSORE MORE MOREORE
+%token RETURN 
 %%
 
 main : main func { $$ = $1; add_edge($$, $2, 0); }
@@ -113,6 +114,7 @@ stmt : if_stmt { $$ = ++tot; treeNode[tot].value = "Stmt"; add_edge($$, $1, 0); 
 	 | expr_stmt  { $$ = ++tot; treeNode[tot].value = "Stmt"; add_edge($$, $1, 0); }
 	 | cp_stmt  { $$ = ++tot; treeNode[tot].value = "Stmt"; add_edge($$, $1, 0); }
 	 | func_call_stmt  { $$ = ++tot; treeNode[tot].value = "Stmt"; add_edge($$, $1, 0); }
+	 | return_stmt { $$ = ++tot; treeNode[tot].value = "Stmt"; add_edge($$, $1, 0); }
 	 ;
 
 if_stmt : IF SL expr SR stmt { $$ = ++tot; treeNode[tot].value = "If Stmt"; add_edge($$, {$3, $5}); }
@@ -147,6 +149,8 @@ cp_stmt : BL stmts BR { $$ = ++tot; treeNode[tot].value = "Compound Stmt"; add_e
 
 func_call_stmt : func_expr SEMI { $$ = ++tot; treeNode[tot].value = "Function Call Stmt"; add_edge($$, $1, 0); }
 			   ;
+
+return_stmt : RETURN expr SEMI { $$ = ++tot; treeNode[tot].value = "Return Stmt"; add_edge($$, $2, 0); }
 
 expr : rela_expr { $$ = ++tot; treeNode[tot].value = "Expr"; add_edge($$, $1, 0); }
 	 | assign_expr { $$ = ++tot; treeNode[tot].value = "Expr"; add_edge($$, $1, 0); }
@@ -335,7 +339,6 @@ void dfs_expr(int x){
 		//treeNode[x].addr = TYPE.T_FLOAT;
 	} else
 	if(tree_str.find("int-") != -1){
-		--TEMP_ID;
 		generate("movl", "$"+tree_str.substr(4, tree_str.length()-4), 1, treeNode[x].addr, 0);
 	} else 
 	if(G[x].size() >= 2){
@@ -413,7 +416,7 @@ void dfs_expr(int x){
 
 		}
 	} else {
-		--TEMP_ID;  treeNode[x].addr = treeNode[G[x][0]].addr;	
+		if(son == -1) --TEMP_ID;  treeNode[x].addr = treeNode[G[x][0]].addr;	
 	}
 }
 
@@ -463,6 +466,11 @@ void dfs_generate(int x){
 		dfs_generate(G[x][1]);
 		generate("jmp .L" + to_string(treeNode[x].label));
 		generate(".L" + to_string(treeNode[x].label+1) + ":");
+	} else if(tree_str == "Return Stmt") {
+		TEMP_ID = 0; dfs_expr(G[x][0]);
+		generate("movl", treeNode[G[x][0]].addr, 0, "%eax", 1);
+		generate("popq %rbp");
+		generate("ret");
 	} else {
 		for(auto to : G[x]){
 			if(to < 0) continue;
@@ -474,18 +482,16 @@ void dfs_generate(int x){
 void dfs_function(int x){
 	string tree_str = treeNode[x].value;
 	if(tree_str == "Function"){
-		cerr<<"hello!"<<endl;
 		generate(".L" + treeNode[G[x][1]].value.substr(7, treeNode[G[x][1]].value.length() - 7) + ":");
 		generate("pushq %rbp");
 		generate("movq %rsp, %rbp");
 		cout<<ssout.str(); ssout.str("");
-		MAX_ID = ID_ADDR = 0;
+		MAX_ID = ID_ADDR = 0; invIds_table.clear();
 		dfs_ID(G[x][2]);
 		dfs_generate(G[x][3]);	
 		cout<<"subq $" + to_string(MAX_ID*4 + 4) + ", %rsp"<<endl;
 		cout<<ssout.str(); ssout.str("");
-		cout<<"popq %rbp"<<endl;
-		cout<<"ret"<<endl;
+		
 	} else {
 		for(auto to : G[x]){
 			if(to < 0) continue;
