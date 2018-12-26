@@ -313,7 +313,6 @@ void dfs_expr(int x){
 		dfs_expr(to);
 		if(invIds_table.count(treeNode[to].addr) == 0){
 			son = to;
-			cerr<<treeNode[to].value<<endl;
 		}
 	}
 	if(son == -1) treeNode[x].addr = ID_ADDR + (++TEMP_ID);
@@ -422,7 +421,6 @@ void dfs_generate(int x){
 	if(treeNode[x].ntype == NTYPE.EXPR){
 		TEMP_ID = 0; dfs_expr(x);
 	} else if(tree_str == "If Stmt"){
-		cerr<<"IF"<<endl;
 		if(G[x].size() == 2){
 			TEMP_ID = 0; dfs_expr(G[x][0]);
 			treeNode[x].label = LABEL++;
