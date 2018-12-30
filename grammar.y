@@ -277,6 +277,12 @@ void dfs_type_error(int x, int type){
 	}
 }
 
+string get_func_name(int x){
+	string func_name = treeNode[x].value.substr(7, treeNode[x].value.length() - 7);
+	if(func_name != "main") func_name = "_L" + func_name;
+	return func_name;
+}
+
 void generate(string com, string a, int aty, string b, int bty){
 	ssout<<com <<" "<< (aty ? a : "-" + a + "(%rbp)")<<","<<(bty ? b : "-" + b + "(%rbp)")<<endl;
 }
@@ -430,11 +436,11 @@ void dfs_expr(int x){
 				cerr<<G[x][i]<<" "<<treeNode[G[x][i]].value<<endl;
 			}
 			if(G[x].size() == 3){
-				generate("call .L" + treeNode[G[x][0]].value.substr(7, treeNode[G[x][0]].value.length() - 7));
+				generate("call " + get_func_name(G[x][0]));
 				generate("movl", "%eax", 1, treeNode[x].addr, 0);
 			} else if(G[x].size() == 2){
 				dfs_push(G[x][1]);
-				generate("call .L" + treeNode[G[x][0]].value.substr(7, treeNode[G[x][0]].value.length() - 7));
+				generate("call " + get_func_name(G[x][0]));
 				generate("movl", "%eax", 1, treeNode[x].addr, 0);
 			}
 		}
@@ -513,7 +519,11 @@ void variable_init(int n){
 void dfs_function(int x){
 	string tree_str = treeNode[x].value;
 	if(tree_str == "Function"){
-		generate(".L" + treeNode[G[x][1]].value.substr(7, treeNode[G[x][1]].value.length() - 7) + ":");
+		string func_name = get_func_name(G[x][1]); 
+		generate(".text");
+		generate(".globl " + func_name);
+		generate(".type " + func_name + ", @function");
+		generate(func_name + ":");
 		generate("pushq %rbp");
 		generate("movq %rsp, %rbp");
 		cout<<ssout.str(); ssout.str("");
