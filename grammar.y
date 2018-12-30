@@ -235,6 +235,14 @@ void dfs_type_error(int x, int type){
 			if(str == mtype[i]) type = i+1;
 		}
 	}
+	if(tree_str == "Function" && G[x][0] != -1){
+		int temp = 0;
+		for(int i = 0; i < 3; i++){
+			string str = treeNode[G[x][0]].value;
+			if(str == mtype[i]) temp = i+1;
+		}
+		Ids_table[treeNode[G[x][1]].value].type = temp;
+	}
 	if(tree_str == "Assign Expr"){
 		if(type != 0) Ids_table[ treeNode[G[x][0]].value ].type = type;
 		type = 0;
