@@ -8,7 +8,7 @@ main(){
   i = 1;
   b = 1;
   for(; i <= a; i = i+1)
-     b = b*i;
+     b = mul(b, i);
   //printf("%d", b);
   return 0;
 }

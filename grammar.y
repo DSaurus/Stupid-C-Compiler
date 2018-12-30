@@ -147,7 +147,7 @@ cp_stmt : BL stmts BR { $$ = ++tot; treeNode[tot].value = "Compound Stmt"; add_e
 	    | BL BR { $$ = ++tot; treeNode[tot].value = "Compound Stmt"; } 
 		;
 
-func_call_stmt : func_expr SEMI { $$ = ++tot; treeNode[tot].value = "Function Call Stmt"; add_edge($$, $1, 0); }
+func_call_stmt : func_expr SEMI { $$ = ++tot; treeNode[tot].value = "Func Call Stmt"; add_edge($$, $1, 0); }
 			   ;
 
 return_stmt : RETURN expr SEMI { $$ = ++tot; treeNode[tot].value = "Return Stmt"; add_edge($$, $2, 0); }
@@ -158,8 +158,8 @@ expr : rela_expr { $$ = ++tot; treeNode[tot].value = "Expr"; add_edge($$, $1, 0)
 	 | 		{ $$ = ++tot; treeNode[tot].value = "Blank Expr"; }
 	 ;
 
-func_expr : ID SL SR { $$ = ++tot; treeNode[tot].value = "Function Call Expr"; $1 = ++tot; treeNode[tot].value = "symbol-" + get_ID(); add_edge($$, $1, 0); }
-		  | ID SL id_list SR { $$ = ++tot; treeNode[tot].value = "Function call Expr"; $1 = ++tot; treeNode[tot].value = "symbol-" + get_ID(); add_edge($$, {$1, $3}); }
+func_expr : ID SL SR { $$ = ++tot; treeNode[tot].value = "Func Call Expr"; $1 = ++tot; treeNode[tot].value = "symbol-" + get_ID(); add_edge($$, {$1, -'(', -')'}); }
+		  | ID SL id_list SR { $$ = ++tot; treeNode[tot].value = "Func Call Expr"; $1 = ++tot; treeNode[tot].value = "symbol-" + get_ID(); add_edge($$, {$1, $3}); }
 		  ;
 
 rela_expr : rela_expr LESS add_expr { $$ = ++tot; treeNode[tot].value = "Less Expr"; add_edge($$, {$1, -'<', $3}); }
@@ -313,6 +313,18 @@ void dfs_ID(int x){
 	}
 }
 
+void dfs_push(int x){
+	string tree_str = treeNode[x].value;
+	cerr<<x<<" "<<tree_str<<endl;
+	if(tree_str.find("symbol-") != -1){
+		generate("pushq", Ids_table[tree_str].addr, 0);
+	}
+	for(auto to : G[x]){
+		if(to < 0) continue;
+		dfs_push(to);
+	}
+}
+
 void dfs_expr(int x){
 	string tree_str = treeNode[x].value;
 	int son = -1;
@@ -412,8 +424,19 @@ void dfs_expr(int x){
 			generate("jne .L" + to_string(LABEL++));
 			generate("movl", "$0", 1, treeNode[x].addr, 0);
 			generate(".L" + to_string(LABEL-1) + ":");
-		} else {
-
+		} else if(tree_str == "Func Call Expr"){
+			cerr<<tree_str<<endl;
+			for(int i = 0; i < 2; i++){
+				cerr<<G[x][i]<<" "<<treeNode[G[x][i]].value<<endl;
+			}
+			if(G[x].size() == 3){
+				generate("call .L" + treeNode[G[x][0]].value.substr(7, treeNode[G[x][0]].value.length() - 7));
+				generate("movl", "%eax", 1, treeNode[x].addr, 0);
+			} else if(G[x].size() == 2){
+				dfs_push(G[x][1]);
+				generate("call .L" + treeNode[G[x][0]].value.substr(7, treeNode[G[x][0]].value.length() - 7));
+				generate("movl", "%eax", 1, treeNode[x].addr, 0);
+			}
 		}
 	} else {
 		if(son == -1) --TEMP_ID;  treeNode[x].addr = treeNode[G[x][0]].addr;	
@@ -468,6 +491,7 @@ void dfs_generate(int x){
 		generate(".L" + to_string(treeNode[x].label+1) + ":");
 	} else if(tree_str == "Return Stmt") {
 		TEMP_ID = 0; dfs_expr(G[x][0]);
+		generate("addq $@MAX_ID, %rsp");
 		generate("movl", treeNode[G[x][0]].addr, 0, "%eax", 1);
 		generate("popq %rbp");
 		generate("ret");
@@ -476,6 +500,13 @@ void dfs_generate(int x){
 			if(to < 0) continue;
 			dfs_generate(to);
 		}
+	}
+}
+
+void variable_init(int n){
+	for(int i = 1; i <= n; i++){
+		generate("movl " + to_string((i+1)*8) + "(%rbp), %eax");
+		generate("movl %eax, -" + to_string((n-i+1)*4) + "(%rbp)");
 	}
 }
 
@@ -488,9 +519,12 @@ void dfs_function(int x){
 		cout<<ssout.str(); ssout.str("");
 		MAX_ID = ID_ADDR = 0; invIds_table.clear();
 		dfs_ID(G[x][2]);
+		variable_init(ID_ADDR);
 		dfs_generate(G[x][3]);	
 		cout<<"subq $" + to_string(MAX_ID*4 + 4) + ", %rsp"<<endl;
-		cout<<ssout.str(); ssout.str("");
+		string outStr = ssout.str();
+		while(outStr.find("@MAX_ID") != -1) outStr.replace(outStr.find("@MAX_ID"), 7, to_string(MAX_ID*4 + 4));
+		cout<<outStr; ssout.str("");
 		
 	} else {
 		for(auto to : G[x]){
