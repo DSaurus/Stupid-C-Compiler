@@ -42,7 +42,7 @@ struct Ids{
 };
 map<string, Ids> Ids_table;
 map<int, int> invIds_table;
-int ID_ADDR = 0, LABEL = 0, TEMP_ID = 0, MAX_ID = 0;
+int ID_ADDR = 0, LABEL = 0, TEMP_ID = 0, MAX_ID = 0, IS_MAIN;
 
 stringstream ssout("");
 
@@ -339,6 +339,17 @@ void dfs_push(int x){
 	}
 }
 
+int dfs_get_func_vb(int x){
+	string tree_str = treeNode[x].value;
+	if(tree_str.find("symbol-") != -1) return Ids_table[tree_str].addr;
+	for(auto to : G[x]){
+		if(to < 0) continue;
+		int temp = dfs_get_func_vb(to);
+		if(temp > 0) return temp;
+	}
+	return 0;
+}
+
 void dfs_expr(int x){
 	string tree_str = treeNode[x].value;
 	int son = -1;
@@ -439,11 +450,21 @@ void dfs_expr(int x){
 			generate("movl", "$0", 1, treeNode[x].addr, 0);
 			generate(".L" + to_string(LABEL-1) + ":");
 		} else if(tree_str == "Func Call Expr"){
-			cerr<<tree_str<<endl;
-			for(int i = 0; i < 2; i++){
-				cerr<<G[x][i]<<" "<<treeNode[G[x][i]].value<<endl;
-			}
-			if(G[x].size() == 3){
+			if(get_func_name(G[x][0]) == "_Lread"){
+				int addr = dfs_get_func_vb(G[x][1]);
+				generate("leaq", addr, 0, "%rax", 1);
+				generate("movq", "%rax", 1, "%rsi", 1);
+				generate("movl", "$.input_string", 1, "%edi", 1);
+				generate("movl", "$0", 1, "%eax", 1);
+				generate("call scanf");
+			} else if(get_func_name(G[x][0]) == "_Lwrite"){
+				int addr = dfs_get_func_vb(G[x][1]);
+				generate("movl", addr, 0, "%eax", 1);
+				generate("movl", "%eax", 1, "%esi", 1);
+				generate("movl", "$.output_string", 1, "%edi", 1);
+				generate("movl", "$0", 1, "%eax", 1);
+				generate("call printf");
+			} else if(G[x].size() == 3){
 				generate("call " + get_func_name(G[x][0]));
 				generate("movl", "%eax", 1, treeNode[x].addr, 0);
 			} else if(G[x].size() == 2){
@@ -507,7 +528,9 @@ void dfs_generate(int x){
 		TEMP_ID = 0; dfs_expr(G[x][0]);
 		generate("addq $@MAX_ID, %rsp");
 		generate("movl", treeNode[G[x][0]].addr, 0, "%eax", 1);
-		generate("popq %rbp");
+		if(IS_MAIN){
+			generate("leave");
+		} else generate("popq %rbp");
 		generate("ret");
 	} else {
 		for(auto to : G[x]){
@@ -536,6 +559,7 @@ void dfs_function(int x){
 		generate("movq %rsp, %rbp");
 		cout<<ssout.str(); ssout.str("");
 		MAX_ID = ID_ADDR = 0; invIds_table.clear();
+		IS_MAIN = func_name == "main";
 		dfs_ID(G[x][2]);
 		variable_init(ID_ADDR);
 		dfs_generate(G[x][3]);	
@@ -552,6 +576,14 @@ void dfs_function(int x){
 	}
 }
 
+void data_generate(){
+	generate(".section .rodata");
+	generate(".input_string:");
+	generate(".string \"%d\"");
+	generate(".output_string:");
+	generate(".string \"%d\\n\"");
+}
+
 int main() {
 	init_pre_table();
 	yyparse();
@@ -559,6 +591,7 @@ int main() {
 	//freopen("tree.txt", "w", stdout);
 	//dfs(root, 0);
 	freopen("asm.txt", "w", stdout);
+	data_generate();
 	dfs_function(root);
 	freopen("/dev/console", "w", stdout);
 	cout<<tot<<endl;
