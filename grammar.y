@@ -79,9 +79,13 @@ main : main func { $$ = $1; add_edge($$, $2, 0); }
 	 | func { $$ = ++tot; treeNode[tot].value = "Main"; root = tot; add_edge($$, $1, 0); }
 	 ;
 
-type : INT   { $$ = ++tot; treeNode[tot].value = "Type Int"; }
+base_type : INT   { $$ = ++tot; treeNode[tot].value = "Type Int"; }
 	 | TSTRING { $$ = ++tot; treeNode[tot].value = "Type String"; }
 	 | FLOAT { $$ = ++tot; treeNode[tot].value = "Type Float"; }
+	 ;
+
+type : base_type 	{ $$ = ++tot; treeNode[tot].value = treeNode[$1].value; add_edge($$, $1, 0); }
+	 | type ML INT_NUMBER MR { $$ = ++tot; treeNode[tot].value = treeNode[$1].value + " |" + get_ID(); add_edge($$, $1, 0); }
 	 ;
 
 func : type ID SL var_list SR cp_stmt  {
@@ -179,10 +183,14 @@ add_expr : add_expr ADD mul_expr { $$ = ++tot; treeNode[tot].value = "Add Expr";
 		 | mul_expr { $$ = ++tot; treeNode[tot].value = "Add Expr"; add_edge($$, $1, 0); }
 		 ;
 
-mul_expr : mul_expr MUL id_expr { $$ = ++tot; treeNode[tot].value = "Mul Expr"; add_edge($$, {$1, -'*', $3}); }
-		 | mul_expr DIV id_expr { $$ = ++tot; treeNode[tot].value = "Div Expr"; add_edge($$, {$1, -'/', $3}); }
-		 | id_expr {$$ = ++tot; treeNode[tot].value = "Mul Expr"; add_edge($$, $1, 0); }
+mul_expr : mul_expr MUL array_expr { $$ = ++tot; treeNode[tot].value = "Mul Expr"; add_edge($$, {$1, -'*', $3}); }
+		 | mul_expr DIV array_expr { $$ = ++tot; treeNode[tot].value = "Div Expr"; add_edge($$, {$1, -'/', $3}); }
+		 | array_expr {$$ = ++tot; treeNode[tot].value = "Mul Expr"; add_edge($$, $1, 0); }
 		 ;
+
+array_expr : array_expr ML expr MR { $$ = ++tot; treeNode[tot].value = "Array Expr"; add_edge($$, {-'[', $3, -']'}); }
+		   | id_expr { $$ = ++tot; treeNode[tot].value = "Array Expr"; add_edge($$, $1, 0); }
+		   ;
 
 id_expr : STRING { $$ = ++tot; treeNode[tot].value = "string-" + get_ID(); }
 		| INT_NUMBER { $$ = ++tot; treeNode[tot].value = "int-" + get_ID(); }
