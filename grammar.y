@@ -11,33 +11,33 @@ const int maxtot = (1<<10);
 vector<int> G[maxtot];
 int tot = 0, root, mtot = 0;
 
-struct TYPET{
-	const static int T_UNDEFINED = 0;
-	const static int T_INT = 1;
-	const static int T_STRING = 2;
-	const static int T_FLOAT = 3;
-	const static int T_ERROR = 4;
-}TYPE;
+// struct TYPET{
+// 	const static int T_UNDEFINED = 0;
+// 	const static int T_INT = 1;
+// 	const static int T_STRING = 2;
+// 	const static int T_FLOAT = 3;
+// 	const static int T_ERROR = 4;
+// }TYPE;
 
 struct NTYPET{
 	const static int STMT = 0;
 	const static int EXPR = 1;
 }NTYPE;
 
-const string TYPETABLE[7] = {"UNDEFINED", "INT", "STRING", "FLOAT", "ERROR"};
-const string mtype[3] = {"Type Int", "Type String", "Type Float"};
+// const string TYPETABLE[7] = {"UNDEFINED", "INT", "STRING", "FLOAT", "ERROR"};
+// const string mtype[3] = {"Type Int", "Type String", "Type Float"};
 
 struct TreeNode{
 	int ntype;
-	int type;
+	string type;
 	string value;
 	int addr;
 	int label;
-	TreeNode() { type = ntype = 0; }
+	TreeNode() { type = "Type Undefined"; ntype = 0; }
 }treeNode[maxtot];
 
 struct Ids{
-	int type;
+	string type;
 	int addr;
 };
 map<string, Ids> Ids_table;
@@ -226,7 +226,7 @@ void dfs(int x, int ty){
 		else cout<<(char)-x;
 	} 
 	else cout<<treeNode[x].value;
-	if(treeNode[x].ntype == NTYPE.EXPR) cout<<"|"<<TYPETABLE[treeNode[x].type];
+	if(treeNode[x].ntype == NTYPE.EXPR) cout<<"|"<<treeNode[x].type;
 	cout<<")";
 	if(x != root && ty == 0) cout<<",";
 	/*cout<<M[x]<<" || ";
@@ -235,42 +235,27 @@ void dfs(int x, int ty){
 	for(auto to : G[x]) if(to > 0) cout<<to<<" "; cout<<endl;*/
 }
 
-void dfs_type_error(int x, int type){
+void dfs_type_error(int x, string type){
 	string tree_str = treeNode[x].value;
 	if(tree_str == "ID Stmt"){
-		for(int i = 0; i < 3; i++){
-			string str = treeNode[G[x][0]].value;
-			if(str == mtype[i]) type = i+1;
-		}
+		type = treeNode[G[x][0]].value;
+		cerr<<type<<endl;
 	}
 	if(tree_str == "Function" && G[x][0] != -1){
-		int temp = 0;
-		for(int i = 0; i < 3; i++){
-			string str = treeNode[G[x][0]].value;
-			if(str == mtype[i]) temp = i+1;
-		}
-		Ids_table[treeNode[G[x][1]].value].type = temp;
+		Ids_table[treeNode[G[x][1]].value].type = treeNode[G[x][0]].value;
 	}
 	if(tree_str == "Assign Expr"){
-		if(type != 0) Ids_table[ treeNode[G[x][0]].value ].type = type;
-		type = 0;
+		if(type != "Type Undefined") Ids_table[ treeNode[G[x][0]].value ].type = type;
+		type = "Type Undefined";
 	}
 	if(tree_str.find("symbol-") != -1){
-		if(type != 0) Ids_table[tree_str].type = type;
+		if(type != "Type Undefined") Ids_table[tree_str].type = type;
 		treeNode[x].ntype = NTYPE.EXPR;
 		treeNode[x].type = Ids_table[tree_str].type;
 	} else
-	if(tree_str.find("string-") != -1){
-		treeNode[x].ntype = NTYPE.EXPR;
-		treeNode[x].type = TYPE.T_STRING;
-	} else
-	if(tree_str.find("float-") != -1){
-		treeNode[x].ntype = NTYPE.EXPR;
-		treeNode[x].type = TYPE.T_FLOAT;
-	} else
 	if(tree_str.find("int-") != -1){
 		treeNode[x].ntype = NTYPE.EXPR;
-		treeNode[x].type = TYPE.T_INT;
+		treeNode[x].type = "Type Int";
 	} else
 	if(tree_str.find("Expr") != -1){
 		treeNode[x].ntype = NTYPE.EXPR;
@@ -282,11 +267,11 @@ void dfs_type_error(int x, int type){
 	if(treeNode[x].ntype == NTYPE.EXPR){
 		for(auto to : G[x]){
 			if(treeNode[to].ntype == NTYPE.EXPR){
-				if(treeNode[x].type == 0) treeNode[x].type = treeNode[to].type;
+				if(treeNode[x].type == "Type Undefined") treeNode[x].type = treeNode[to].type;
 				else if(treeNode[x].type != treeNode[to].type) {
-					cout<<"Type error : "<<treeNode[x].value<<"("<<TYPETABLE[treeNode[x].type]<<")"<<" is conflict with "<<
-					  treeNode[to].value<<"("<<TYPETABLE[treeNode[to].type]<<")"<<endl;
-					treeNode[x].type = TYPE.T_ERROR;
+					cout<<"Type error : "<<treeNode[x].value<<"("<<treeNode[x].type<<")"<<" is conflict with "<<
+					  treeNode[to].value<<"("<<treeNode[to].type<<")"<<endl;
+					treeNode[x].type = "Type Error";
 				}
 			}
 		}
@@ -595,7 +580,7 @@ void data_generate(){
 int main() {
 	init_pre_table();
 	yyparse();
-	dfs_type_error(root, 0);
+	dfs_type_error(root, "Type Undefined");
 	//freopen("tree.txt", "w", stdout);
 	//dfs(root, 0);
 	freopen("test.s", "w", stdout);
