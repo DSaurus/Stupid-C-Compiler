@@ -66,6 +66,7 @@ void add_edge(int x, vector<int> y){
 
 %token ADD SUB MUL DIV
 %token SL SR BL BR ML MR
+%token AT
 %token ID
 %token TSTRING FLOAT INT
 %token STRING FLOAT_NUMBER INT_NUMBER
@@ -81,8 +82,7 @@ main : main func { $$ = $1; add_edge($$, $2, 0); }
 	 ;
 
 base_type : INT   { $$ = ++tot; treeNode[tot].value = "Type Int"; }
-	 | TSTRING { $$ = ++tot; treeNode[tot].value = "Type String"; }
-	 | FLOAT { $$ = ++tot; treeNode[tot].value = "Type Float"; }
+	 | INT AT { $$ = ++tot; treeNode[tot].value = "Type@ Int"; }
 	 ;
 
 type : base_type 	{ $$ = ++tot; treeNode[tot].value = treeNode[$1].value; add_edge($$, $1, 0); }
@@ -193,17 +193,18 @@ add_expr : add_expr ADD mul_expr { $$ = ++tot; treeNode[tot].value = "Add Expr";
 mul_expr : mul_expr MUL id_expr { $$ = ++tot; treeNode[tot].value = "Mul Expr"; add_edge($$, {$1, -'*', $3}); }
 		 | mul_expr DIV id_expr { $$ = ++tot; treeNode[tot].value = "Div Expr"; add_edge($$, {$1, -'/', $3}); }
 		 | id_expr {$$ = ++tot; treeNode[tot].value = "Mul Expr"; add_edge($$, $1, 0); }
-		 ;
-
-ID_ap    : ID_ap ML expr MR { $$ = ++tot; treeNode[tot].value = "Array Expr"; add_edge($$, {$1, $3}); }
-	     | ID { $$ = ++tot; treeNode[tot].value = "symbol-" + get_ID(); }
-		 ;
+		 ; 
 
 id_expr : STRING { $$ = ++tot; treeNode[tot].value = "string-" + get_ID(); }
 		| INT_NUMBER { $$ = ++tot; treeNode[tot].value = "int-" + get_ID(); }
 		| FLOAT_NUMBER { $$ = ++tot; treeNode[tot].value = "float-" + get_ID(); }
 		| ID_ap { $$ = ++tot; treeNode[tot].value = "ID Expr"; add_edge($$, $1, 0); }
+		| SL expr SR { $$ = ++tot; treeNode[tot].value = "ID Expr"; add_edge($$, $2, 0); }
 		;
+
+ID_ap    : ID_ap ML expr MR { $$ = ++tot; treeNode[tot].value = "Array Expr"; add_edge($$, {$1, $3}); }
+	     | ID { $$ = ++tot; treeNode[tot].value = "symbol-" + get_ID(); }
+		 ;		
 
 %%
 #include <map>
