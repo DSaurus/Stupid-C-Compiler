@@ -14,8 +14,9 @@ int getValue_8(char *s);
 %%
 [\.\{\};\(\)\[\]\+\-\*/\<\>=,:] {  return sign_table[yytext]; }
 !=|==|<=|>= {  return sign_table[yytext]; }
+\&|\$ { cerr<<yytext<<" "<<sign_table[yytext]<<endl; return sign_table[yytext]; }
 \+\+|-- {   return sign_table[yytext]; }
-\<\<|\>\>|\^|\||&|~|@ {  return sign_table[yytext]; }
+\<\<|\>\>|\^|\||~ { cerr<<yytext<<" "<<sign_table[yytext]<<endl; return sign_table[yytext]; }
 xor|and|or|not {   return sign_table[yytext]; }
 &&|\|\||! {   return sign_table[yytext]; }
 \'.\' {  return sign_table[yytext]; }
@@ -60,9 +61,10 @@ int getValue_8(char *s) {
 
 void init_pre_table(){
     sign_table[","] = COMMA;
-    /*sign_table[":"] = "COLON";
-    sign_table["@"] = "AT";
-    sign_table["."] = "DOT";*/
+    //sign_table[":"] = "COLON";
+    sign_table["&"] = ADDRESS;
+    //sign_table["*"] = AT;
+    //sign_table["."] = "DOT";
     sign_table["{"] = BL;
     sign_table["}"] = BR;
     sign_table[";"] = SEMI;
