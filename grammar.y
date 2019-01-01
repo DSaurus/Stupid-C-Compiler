@@ -64,7 +64,7 @@ void add_edge(int x, vector<int> y){
 %}
 
 %token ADD SUB MUL DIV
-%token SL SR BL BR
+%token SL SR BL BR ML MR
 %token ID
 %token TSTRING FLOAT INT
 %token STRING FLOAT_NUMBER INT_NUMBER
@@ -303,19 +303,19 @@ void generate(string com, string a, int aty, string b, int bty){
 	ssout<<com <<" "<< (aty ? a : "-" + a + "(%rbp)")<<","<<(bty ? b : "-" + b + "(%rbp)")<<endl;
 }
 void generate(string com, int a, int aty, int b, int bty){
-	generate(com, to_string(a*4), aty, to_string(b*4), bty);
+	generate(com, to_string(a*8), aty, to_string(b*8), bty);
 }
 void generate(string com, int a, int aty, string b, int bty){
-	generate(com, to_string(a*4), aty, b, bty);
+	generate(com, to_string(a*8), aty, b, bty);
 }
 void generate(string com, string a, int aty, int b, int bty){
-	generate(com, a, aty, to_string(b*4), bty);
+	generate(com, a, aty, to_string(b*8), bty);
 }
 void generate(string com, string a, int aty){
 	ssout<<com<<" "<<(aty ? a : "-" + a + "(%rbp)")<<endl;
 }
 void generate(string com, int a, int aty){
-	generate(com,  to_string(a*4), aty);
+	generate(com,  to_string(a*8), aty);
 }
 void generate(string com){
 	ssout<<com<<endl;
@@ -327,7 +327,7 @@ void dfs_ID(int x){
 	if(tree_str.find("symbol-") != -1){
 		Ids_table[tree_str].addr = ++ID_ADDR;
 		invIds_table[ID_ADDR] = 1;
-		cerr<<tree_str<<" "<<4*ID_ADDR<<endl;
+		cerr<<tree_str<<" "<<8*ID_ADDR<<endl;
 	}
 	for(auto to : G[x]){
 		if(to < 0) continue;
@@ -371,7 +371,7 @@ void dfs_expr(int x){
 	if(son == -1) { treeNode[x].addr = ID_ADDR + (++TEMP_ID); MAX_ID = max(MAX_ID, treeNode[x].addr); }
 	else treeNode[x].addr = treeNode[son].addr;
 	if(tree_str == "Blank Expr"){
-		generate("movl", "$1", 1, treeNode[x].addr, 0);
+		generate("movq", "$1", 1, treeNode[x].addr, 0);
 	} else 
 	if(tree_str.find("symbol-") != -1){
 		--TEMP_ID;
@@ -384,101 +384,101 @@ void dfs_expr(int x){
 		//treeNode[x].addr = TYPE.T_FLOAT;
 	} else
 	if(tree_str.find("int-") != -1){
-		generate("movl", "$"+tree_str.substr(4, tree_str.length()-4), 1, treeNode[x].addr, 0);
+		generate("movq", "$"+tree_str.substr(4, tree_str.length()-4), 1, treeNode[x].addr, 0);
 	} else 
 	if(G[x].size() >= 2){
 		int a = G[x][0], b = G[x][2];
 		a = treeNode[a].addr; b = treeNode[b].addr;
 		if(tree_str == "Mul Expr"){
-			generate("movl", b, 0, "%eax", 1);
-			generate("imull", a, 0, "%eax", 1);
-			generate("movl", "%eax", 1, treeNode[x].addr, 0);
+			generate("movq", b, 0, "%rax", 1);
+			generate("imulq", a, 0, "%rax", 1);
+			generate("movq", "%rax", 1, treeNode[x].addr, 0);
 		} else if(tree_str == "Div Expr"){
-			generate("movl", a, 0, "%eax", 1);
-			generate("idivl", b, 0);
-			generate("movl", "%eax", 1, treeNode[x].addr, 0);
+			generate("movq", a, 0, "%rax", 1);
+			generate("idivq", b, 0);
+			generate("movq", "%rax", 1, treeNode[x].addr, 0);
 		} else if(tree_str == "Add Expr"){
-			generate("movl", a, 0, "%eax", 1);
-			generate("addl", b, 0, "%eax", 1);
-			generate("movl", "%eax", 1, treeNode[x].addr, 0);
+			generate("movq", a, 0, "%rax", 1);
+			generate("addq", b, 0, "%rax", 1);
+			generate("movq", "%rax", 1, treeNode[x].addr, 0);
 		} else if(tree_str == "Sub Expr"){
-			generate("movl", a, 0, "%eax", 1);
-			generate("subl", b, 0, "%eax", 1);
-			generate("movl", "%eax", 1, treeNode[x].addr, 0);
+			generate("movq", a, 0, "%rax", 1);
+			generate("subq", b, 0, "%rax", 1);
+			generate("movq", "%rax", 1, treeNode[x].addr, 0);
 		} else if(tree_str == "Assign Expr"){
-			generate("movl", b, 0, "%eax", 1);
-			generate("movl", "%eax", 1, a, 0);
-			generate("movl", "%eax", 1, treeNode[x].addr, 0);
+			generate("movq", b, 0, "%rax", 1);
+			generate("movq", "%rax", 1, a, 0);
+			generate("movq", "%rax", 1, treeNode[x].addr, 0);
 		} else if(tree_str == "Less Expr"){
-			generate("movl", a, 0, "%eax", 1);
-			generate("movl", b, 0, "%ebx", 1);
-			generate("movl", "$1", 1, treeNode[x].addr, 0);			
-			generate("cmpl", "%ebx", 1, "%eax", 1);
+			generate("movq", a, 0, "%rax", 1);
+			generate("movq", b, 0, "%rbx", 1);
+			generate("movq", "$1", 1, treeNode[x].addr, 0);			
+			generate("cmpq", "%rbx", 1, "%rax", 1);
 			generate("jl .L" + to_string(LABEL++));
-			generate("movl", "$0", 1, treeNode[x].addr, 0);
+			generate("movq", "$0", 1, treeNode[x].addr, 0);
 			generate(".L" + to_string(LABEL-1) + ":");
 		} else if(tree_str == "More Expr"){
-			generate("movl", a, 0, "%eax", 1);
-			generate("movl", b, 0, "%ebx", 1);
-			generate("movl", "$0", 1, treeNode[x].addr, 0);
-			generate("cmpl", "%ebx", 1, "%eax", 1);
+			generate("movq", a, 0, "%rax", 1);
+			generate("movq", b, 0, "%rbx", 1);
+			generate("movq", "$0", 1, treeNode[x].addr, 0);
+			generate("cmpq", "%rbx", 1, "%rax", 1);
 			generate("jle .L" + to_string(LABEL++));
-			generate("movl", "$1", 1, treeNode[x].addr, 0);
+			generate("movq", "$1", 1, treeNode[x].addr, 0);
 			generate(".L" + to_string(LABEL-1) + ":");
 		} else if(tree_str == "LessOrEqual Expr"){
-			generate("movl", a, 0, "%eax", 1);
-			generate("movl", b, 0, "%ebx", 1);
-			generate("movl", "$1", 1, treeNode[x].addr, 0);
-			generate("cmpl", "%ebx", 1, "%eax", 1);
+			generate("movq", a, 0, "%rax", 1);
+			generate("movq", b, 0, "%rbx", 1);
+			generate("movq", "$1", 1, treeNode[x].addr, 0);
+			generate("cmpq", "%rbx", 1, "%rax", 1);
 			generate("jle .L" + to_string(LABEL++));
-			generate("movl", "$0", 1, treeNode[x].addr, 0);
+			generate("movq", "$0", 1, treeNode[x].addr, 0);
 			generate(".L" + to_string(LABEL-1) + ":");
 		} else if(tree_str == "MoreOrEqual Expr"){
-			generate("movl", a, 0, "%eax", 1);
-			generate("movl", b, 0, "%ebx", 1);
-			generate("movl", "$0", 1, treeNode[x].addr, 0);
-			generate("cmpl", "%ebx", 1, "%eax", 1);
+			generate("movq", a, 0, "%eax", 1);
+			generate("movq", b, 0, "%ebx", 1);
+			generate("movq", "$0", 1, treeNode[x].addr, 0);
+			generate("cmpq", "%rbx", 1, "%rax", 1);
 			generate("jl .L" + to_string(LABEL++));
-			generate("movl", "$1", 1, treeNode[x].addr, 0);
+			generate("movq", "$1", 1, treeNode[x].addr, 0);
 			generate(".L" + to_string(LABEL-1) + ":");
 		} else if(tree_str == "Equal Expr"){
-			generate("movl", a, 0, "%eax", 1);
-			generate("movl", b, 0, "%ebx", 1);
-			generate("movl", "$1", 1, treeNode[x].addr, 0);
-			generate("cmpl", "%ebx", 1, "%eax", 1);
+			generate("movq", a, 0, "%rax", 1);
+			generate("movq", b, 0, "%rbx", 1);
+			generate("movq", "$1", 1, treeNode[x].addr, 0);
+			generate("cmpq", "%rbx", 1, "%rax", 1);
 			generate("je .L" + to_string(LABEL++));
-			generate("movl", "$0", 1, treeNode[x].addr, 0);
+			generate("movq", "$0", 1, treeNode[x].addr, 0);
 			generate(".L" + to_string(LABEL-1) + ":");
 		} else if(tree_str == "NotEqual Expr"){
-			generate("movl", a, 0, "%eax", 1);
-			generate("movl", b, 0, "%ebx", 1);
-			generate("movl", "$1", 1, treeNode[x].addr, 0);
-			generate("cmpl", "%ebx", 1, "%eax", 1);
+			generate("movq", a, 0, "%eax", 1);
+			generate("movq", b, 0, "%ebx", 1);
+			generate("movq", "$1", 1, treeNode[x].addr, 0);
+			generate("cmpq", "%ebx", 1, "%eax", 1);
 			generate("jne .L" + to_string(LABEL++));
-			generate("movl", "$0", 1, treeNode[x].addr, 0);
+			generate("movq", "$0", 1, treeNode[x].addr, 0);
 			generate(".L" + to_string(LABEL-1) + ":");
 		} else if(tree_str == "Func Call Expr"){
 			if(get_func_name(G[x][0]) == "_Lread"){
 				int addr = dfs_get_func_vb(G[x][1]);
 				generate("leaq", addr, 0, "%rax", 1);
 				generate("movq", "%rax", 1, "%rsi", 1);
-				generate("movl", "$.input_string", 1, "%edi", 1);
-				generate("movl", "$0", 1, "%eax", 1);
+				generate("movq", "$.input_string", 1, "%rdi", 1);
+				generate("movq", "$0", 1, "%rax", 1);
 				generate("call scanf");
 			} else if(get_func_name(G[x][0]) == "_Lwrite"){
 				int addr = dfs_get_func_vb(G[x][1]);
-				generate("movl", addr, 0, "%eax", 1);
-				generate("movl", "%eax", 1, "%esi", 1);
-				generate("movl", "$.output_string", 1, "%edi", 1);
-				generate("movl", "$0", 1, "%eax", 1);
+				generate("movq", addr, 0, "%rax", 1);
+				generate("movq", "%rax", 1, "%rsi", 1);
+				generate("movq", "$.output_string", 1, "%rdi", 1);
+				generate("movq", "$0", 1, "%rax", 1);
 				generate("call printf");
 			} else if(G[x].size() == 3){
 				generate("call " + get_func_name(G[x][0]));
-				generate("movl", "%eax", 1, treeNode[x].addr, 0);
+				generate("movq", "%rax", 1, treeNode[x].addr, 0);
 			} else if(G[x].size() == 2){
 				dfs_push(G[x][1]);
 				generate("call " + get_func_name(G[x][0]));
-				generate("movl", "%eax", 1, treeNode[x].addr, 0);
+				generate("movq", "%rax", 1, treeNode[x].addr, 0);
 			}
 		}
 	} else {
@@ -497,14 +497,14 @@ void dfs_generate(int x){
 		if(G[x].size() == 2){
 			TEMP_ID = 0; dfs_expr(G[x][0]);
 			treeNode[x].label = LABEL++;
-			generate("cmpl", "$0", 1, treeNode[G[x][0]].addr, 0);
+			generate("cmpq", "$0", 1, treeNode[G[x][0]].addr, 0);
 			generate("je .L" + to_string(treeNode[x].label));
 			dfs_generate(G[x][1]);
 			generate(".L" + to_string(treeNode[x].label) + ":");
 		} else {
 			TEMP_ID = 0; dfs_expr(G[x][0]);
 			treeNode[x].label = LABEL; LABEL += 2;
-			generate("cmpl",  "$0", 1, treeNode[G[x][0]].addr, 0);
+			generate("cmpq",  "$0", 1, treeNode[G[x][0]].addr, 0);
 			generate("je .L" + to_string(treeNode[x].label));
 			dfs_generate(G[x][1]);
 			generate("jmp .L" + to_string(treeNode[x].label + 1));
@@ -517,7 +517,7 @@ void dfs_generate(int x){
 		treeNode[x].label = LABEL; LABEL += 2;
 		generate(".L" + to_string(treeNode[x].label) + ":");
 		dfs_generate(G[x][1]);
-		generate("cmpl",  "$0", 1, treeNode[G[G[x][1]][0]].addr, 0);
+		generate("cmpq",  "$0", 1, treeNode[G[G[x][1]][0]].addr, 0);
 		generate("je .L" + to_string(treeNode[x].label+1));
 		dfs_generate(G[x][3]);
 		TEMP_ID = 0; dfs_expr(G[x][2]);
@@ -527,7 +527,7 @@ void dfs_generate(int x){
 		treeNode[x].label = LABEL; LABEL += 2;
 		generate(".L" + to_string(treeNode[x].label) + ":");
 		TEMP_ID = 0; dfs_expr(G[x][0]);
-		generate("cmpl", "$0", 1, treeNode[G[x][0]].addr, 0);
+		generate("cmpq", "$0", 1, treeNode[G[x][0]].addr, 0);
 		generate("je .L" + to_string(treeNode[x].label + 1));
 		dfs_generate(G[x][1]);
 		generate("jmp .L" + to_string(treeNode[x].label));
@@ -535,7 +535,7 @@ void dfs_generate(int x){
 	} else if(tree_str == "Return Stmt") {
 		TEMP_ID = 0; dfs_expr(G[x][0]);
 		generate("addq $@MAX_ID, %rsp");
-		generate("movl", treeNode[G[x][0]].addr, 0, "%eax", 1);
+		generate("movq", treeNode[G[x][0]].addr, 0, "%rax", 1);
 		if(IS_MAIN){
 			generate("leave");
 		} else generate("popq %rbp");
@@ -550,8 +550,8 @@ void dfs_generate(int x){
 
 void variable_init(int n){
 	for(int i = 1; i <= n; i++){
-		generate("movl " + to_string((i+1)*8) + "(%rbp), %eax");
-		generate("movl %eax, -" + to_string((n-i+1)*4) + "(%rbp)");
+		generate("movq " + to_string((i+1)*8) + "(%rbp), %rax");
+		generate("movq %rax, -" + to_string((n-i+1)*8) + "(%rbp)");
 	}
 }
 
@@ -571,9 +571,9 @@ void dfs_function(int x){
 		dfs_ID(G[x][2]);
 		variable_init(ID_ADDR);
 		dfs_generate(G[x][3]);	
-		cout<<"subq $" + to_string(MAX_ID*4 + 4) + ", %rsp"<<endl;
+		cout<<"subq $" + to_string(MAX_ID*8 + 8) + ", %rsp"<<endl;
 		string outStr = ssout.str();
-		while(outStr.find("@MAX_ID") != -1) outStr.replace(outStr.find("@MAX_ID"), 7, to_string(MAX_ID*4 + 4));
+		while(outStr.find("@MAX_ID") != -1) outStr.replace(outStr.find("@MAX_ID"), 7, to_string(MAX_ID*8 + 8));
 		cout<<outStr; ssout.str("");
 		
 	} else {
@@ -587,9 +587,9 @@ void dfs_function(int x){
 void data_generate(){
 	generate(".section .rodata");
 	generate(".input_string:");
-	generate(".string \"%d\"");
+	generate(".string \"%lld\"");
 	generate(".output_string:");
-	generate(".string \"%d\\n\"");
+	generate(".string \"%lld\\n\"");
 }
 
 int main() {
@@ -598,7 +598,7 @@ int main() {
 	dfs_type_error(root, 0);
 	//freopen("tree.txt", "w", stdout);
 	//dfs(root, 0);
-	freopen("asm.txt", "w", stdout);
+	freopen("test.s", "w", stdout);
 	data_generate();
 	dfs_function(root);
 	freopen("/dev/console", "w", stdout);

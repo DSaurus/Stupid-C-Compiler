@@ -70,8 +70,8 @@ void init_pre_table(){
     sign_table["="] = ASSIGN;
     sign_table["("] = SL;
     sign_table[")"] = SR;
-    //sign_table["["] = "LBRACK";
-    //sign_table["]"] = "RBRACK";
+    sign_table["["] = ML;
+    sign_table["]"] = MR;
     sign_table["+"] = ADD;
     sign_table["-"] = SUB;
     sign_table["*"] = MUL;
