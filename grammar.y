@@ -318,8 +318,9 @@ namespace Array_Pointer{
 	}
 	void derive(string type, int base, int offset, int out){
 		stringstream ss(type);
-		string temp; ss>>temp; ss>>temp; ss>>temp; 
+		string temp; ss>>temp; ss>>temp;
 		int space = 1, x = -1;
+		cerr<<type<<endl;
 		while(ss>>temp){
 			x = atoi(temp.substr(1, temp.length()-1).c_str());
 			space *= x;
@@ -363,6 +364,7 @@ void dfs_type_error(int x, string type){
 	}
 	for(auto to : G[x]){
 		if(to < 0) continue;
+		pa[to] = x;
 		dfs_type_error(to, type);
 	}
 	if(treeNode[x].ntype == NTYPE.EXPR){
@@ -567,6 +569,7 @@ void dfs_expr(int x){
 		} else if(tree_str == "Array Expr"){
 			Array_Pointer::derive(treeNode[x].type, treeNode[G[x][0]].addr, treeNode[G[x][1]].addr, treeNode[x].addr);
 			if(treeNode[pa[x]].value != "Array Expr") treeNode[x].addr = -treeNode[x].addr;
+			cerr<<treeNode[pa[x]].value<<endl;
 		} else if(tree_str == "At Expr"){
 			generate("movq", treeNode[G[x][1]].addr, 0, "%rax", 1);
 			generate("movq", "%rax", 1, treeNode[x].addr, 0);
