@@ -33,6 +33,7 @@ struct TreeNode{
 	string value;
 	int addr;
 	int label;
+	bool left;
 	TreeNode() { type = "Type Undefined"; ntype = 0; }
 }treeNode[maxtot];
 
@@ -156,14 +157,20 @@ func_call_stmt : func_expr SEMI { $$ = ++tot; treeNode[tot].value = "Func Call S
 
 return_stmt : RETURN expr SEMI { $$ = ++tot; treeNode[tot].value = "Return Stmt"; add_edge($$, $2, 0); }
 
+expr_list : expr { $$ = ++tot; treeNode[tot].value = "E List"; add_edge($$, $1, 0); }
+	      | expr_list COMMA expr { $$ = ++tot; treeNode[tot].value = "E List"; add_edge($$, {$1, $3}); }
+	      ;
+
 expr : rela_expr { $$ = ++tot; treeNode[tot].value = "Expr"; add_edge($$, $1, 0); }
 	 | assign_expr { $$ = ++tot; treeNode[tot].value = "Expr"; add_edge($$, $1, 0); }
 	 | func_expr { $$ = ++tot; treeNode[tot].value = "Expr"; add_edge($$, $1, 0); }
 	 | 		{ $$ = ++tot; treeNode[tot].value = "Blank Expr"; }
 	 ;
 
+
+
 func_expr : ID SL SR { $$ = ++tot; treeNode[tot].value = "Func Call Expr"; $1 = ++tot; treeNode[tot].value = "symbol-" + get_ID(); add_edge($$, {$1, -'(', -')'}); }
-		  | ID SL id_list SR { $$ = ++tot; treeNode[tot].value = "Func Call Expr"; $1 = ++tot; treeNode[tot].value = "symbol-" + get_ID(); add_edge($$, {$1, $3}); }
+		  | ID SL expr_list SR { $$ = ++tot; treeNode[tot].value = "Func Call Expr"; $1 = ++tot; treeNode[tot].value = "symbol-" + get_ID(); add_edge($$, {$1, $3}); }
 		  ;
 
 rela_expr : rela_expr LESS add_expr { $$ = ++tot; treeNode[tot].value = "Less Expr"; add_edge($$, {$1, -'<', $3}); }
@@ -175,7 +182,7 @@ rela_expr : rela_expr LESS add_expr { $$ = ++tot; treeNode[tot].value = "Less Ex
 		  | add_expr {$$ = ++tot; treeNode[tot].value = "Rela Expr"; add_edge($$, $1, 0); }
 		  ;
 
-assign_expr : ID ASSIGN expr { $$ = ++tot; treeNode[tot].value = "Assign Expr"; $1 = ++tot; treeNode[tot].value = "symbol-" + get_ID(); add_edge($$, {$1, -'=', $3}); }
+assign_expr : ID_ap ASSIGN expr { $$ = ++tot; treeNode[tot].value = "Assign Expr"; add_edge($$, {$1, -'=', $3}); }
 		    ;
 
 add_expr : add_expr ADD mul_expr { $$ = ++tot; treeNode[tot].value = "Add Expr";  add_edge($$, {$1, -'+', $3}); }
@@ -183,19 +190,19 @@ add_expr : add_expr ADD mul_expr { $$ = ++tot; treeNode[tot].value = "Add Expr";
 		 | mul_expr { $$ = ++tot; treeNode[tot].value = "Add Expr"; add_edge($$, $1, 0); }
 		 ;
 
-mul_expr : mul_expr MUL array_expr { $$ = ++tot; treeNode[tot].value = "Mul Expr"; add_edge($$, {$1, -'*', $3}); }
-		 | mul_expr DIV array_expr { $$ = ++tot; treeNode[tot].value = "Div Expr"; add_edge($$, {$1, -'/', $3}); }
-		 | array_expr {$$ = ++tot; treeNode[tot].value = "Mul Expr"; add_edge($$, $1, 0); }
+mul_expr : mul_expr MUL id_expr { $$ = ++tot; treeNode[tot].value = "Mul Expr"; add_edge($$, {$1, -'*', $3}); }
+		 | mul_expr DIV id_expr { $$ = ++tot; treeNode[tot].value = "Div Expr"; add_edge($$, {$1, -'/', $3}); }
+		 | id_expr {$$ = ++tot; treeNode[tot].value = "Mul Expr"; add_edge($$, $1, 0); }
 		 ;
 
-array_expr : array_expr ML expr MR { $$ = ++tot; treeNode[tot].value = "Array Expr"; add_edge($$, {-'[', $3, -']'}); }
-		   | id_expr { $$ = ++tot; treeNode[tot].value = "Array Expr"; add_edge($$, $1, 0); }
-		   ;
+ID_ap    : ID_ap ML expr MR { cerr<<tot<<endl; $$ = ++tot; treeNode[tot].value = "Array Expr"; add_edge($$, {$1, $3}); }
+	     | ID { $$ = ++tot; treeNode[tot].value = "symbol-" + get_ID(); }
+		 ;
 
 id_expr : STRING { $$ = ++tot; treeNode[tot].value = "string-" + get_ID(); }
 		| INT_NUMBER { $$ = ++tot; treeNode[tot].value = "int-" + get_ID(); }
 		| FLOAT_NUMBER { $$ = ++tot; treeNode[tot].value = "float-" + get_ID(); }
-		| ID { $$ = ++tot; treeNode[tot].value = "symbol-" + get_ID(); }
+		| ID_ap { $$ = ++tot; treeNode[tot].value = "ID Expr"; add_edge($$, $1, 0); }
 		;
 
 %%
@@ -204,6 +211,9 @@ id_expr : STRING { $$ = ++tot; treeNode[tot].value = "string-" + get_ID(); }
 #include <iostream>
 using namespace std;
 map<int, int> sig, sigM;
+
+void dfs_expr(int x);	
+
 void dfs(int x, int ty){
 	cout<<"(";
 	if(x > 0){
@@ -235,8 +245,80 @@ void dfs(int x, int ty){
 	for(auto to : G[x]) if(to > 0) cout<<to<<" "; cout<<endl;*/
 }
 
+
+
+namespace Generate{
+	void generate(string com, string a, int aty, string b, int bty){
+		ssout<<com <<" "<< (aty ? a : "-" + a + "(%rbp)")<<","<<(bty ? b : "-" + b + "(%rbp)")<<endl;
+	}
+	void generate(string com, int a, int aty, int b, int bty){
+		generate(com, to_string(a*8), aty, to_string(b*8), bty);
+	}
+	void generate(string com, int a, int aty, string b, int bty){
+		generate(com, to_string(a*8), aty, b, bty);
+	}
+	void generate(string com, string a, int aty, int b, int bty){
+		generate(com, a, aty, to_string(b*8), bty);
+	}
+	void generate(string com, string a, int aty){
+		ssout<<com<<" "<<(aty ? a : "-" + a + "(%rbp)")<<endl;
+	}
+	void generate(string com, int a, int aty){
+		generate(com,  to_string(a*8), aty);
+	}
+	void generate(string com){
+		ssout<<com<<endl;
+	}
+};
+using namespace Generate;
+
+namespace Array_Pointer{
+	void declare(string type, int addr){
+		stringstream ss(type);
+		string temp; ss>>temp; ss>>temp;
+		int space = 1;
+		while(ss>>temp){
+			int x = atoi(temp.substr(1, temp.length()-1).c_str());
+			space *= x;
+		}
+		for(int i = 1; i <= space; i++) invIds_table[++ID_ADDR] = 1;
+		generate("leaq", addr+1, 0, "%rax", 1);
+		generate("movq", "%rax", 1, addr, 0);
+	}
+	string type_derive(string type){
+		stringstream ss(type), ss2("");
+		string temp; ss>>temp; ss2<<temp; ss>>temp; ss2<<" "<<temp;
+		ss>>temp; 
+		while(ss>>temp) ss2<<" "<<temp;
+		return ss2.str();
+	}
+	void derive(string type, int base, int offset, int out, bool left){
+		stringstream ss(type);
+		string temp; ss>>temp; ss>>temp; ss>>temp; 
+		int space = 1, x = -1;
+		while(ss>>temp){
+			x = atoi(temp.substr(1, temp.length()-1).c_str());
+			space *= x;
+		}
+		generate("movq", offset, 0, "%rax", 1);
+		generate("imulq", "$" + to_string(space*8), 1, "%rax", 1);
+		generate("movq", base, 0, "%rbx", 1);
+		generate("subq", "%rax", 1, "%rbx", 1);
+		if(x != -1) generate("movq", "%rbx", 1, out, 0);
+		else {
+			if(left){
+				generate("movq", "%rbx", 1, out, 0);
+			} else {
+				generate("movq", "(%rbx)", 1, "%rax", 1);
+				generate("movq", "%rax", 1, out, 0);
+			}
+		}
+	}
+};
+
 void dfs_type_error(int x, string type){
 	string tree_str = treeNode[x].value;
+	cerr<<x<<" "<<type<<" "<<G[x].size()<<endl;
 	if(tree_str == "ID Stmt"){
 		type = treeNode[G[x][0]].value;
 		cerr<<type<<endl;
@@ -247,6 +329,7 @@ void dfs_type_error(int x, string type){
 	if(tree_str == "Assign Expr"){
 		if(type != "Type Undefined") Ids_table[ treeNode[G[x][0]].value ].type = type;
 		type = "Type Undefined";
+		treeNode[G[x][0]].left = true;
 	}
 	if(tree_str.find("symbol-") != -1){
 		if(type != "Type Undefined") Ids_table[tree_str].type = type;
@@ -266,6 +349,18 @@ void dfs_type_error(int x, string type){
 	}
 	if(treeNode[x].ntype == NTYPE.EXPR){
 		for(auto to : G[x]){
+			if(to < 0) continue;
+			if(treeNode[x].value == "Array Expr"){
+				if(G[x].size() == 1){
+					treeNode[x].type = treeNode[to].type;
+					cerr<<treeNode[x].type<<endl;
+					break;
+				} else {
+					treeNode[x].type = Array_Pointer::type_derive(treeNode[G[x][0]].type);
+					cerr<<treeNode[x].type<<endl;
+					break;
+				}
+			} else 
 			if(treeNode[to].ntype == NTYPE.EXPR){
 				if(treeNode[x].type == "Type Undefined") treeNode[x].type = treeNode[to].type;
 				else if(treeNode[x].type != treeNode[to].type) {
@@ -284,34 +379,15 @@ string get_func_name(int x){
 	return func_name;
 }
 
-void generate(string com, string a, int aty, string b, int bty){
-	ssout<<com <<" "<< (aty ? a : "-" + a + "(%rbp)")<<","<<(bty ? b : "-" + b + "(%rbp)")<<endl;
-}
-void generate(string com, int a, int aty, int b, int bty){
-	generate(com, to_string(a*8), aty, to_string(b*8), bty);
-}
-void generate(string com, int a, int aty, string b, int bty){
-	generate(com, to_string(a*8), aty, b, bty);
-}
-void generate(string com, string a, int aty, int b, int bty){
-	generate(com, a, aty, to_string(b*8), bty);
-}
-void generate(string com, string a, int aty){
-	ssout<<com<<" "<<(aty ? a : "-" + a + "(%rbp)")<<endl;
-}
-void generate(string com, int a, int aty){
-	generate(com,  to_string(a*8), aty);
-}
-void generate(string com){
-	ssout<<com<<endl;
-}
-
 
 void dfs_ID(int x){
 	string tree_str = treeNode[x].value;
 	if(tree_str.find("symbol-") != -1){
 		Ids_table[tree_str].addr = ++ID_ADDR;
 		invIds_table[ID_ADDR] = 1;
+		if(Ids_table[tree_str].type.find("|") != -1){
+			Array_Pointer::declare(Ids_table[tree_str].type, ID_ADDR);
+		}
 		cerr<<tree_str<<" "<<8*ID_ADDR<<endl;
 	}
 	for(auto to : G[x]){
@@ -323,8 +399,9 @@ void dfs_ID(int x){
 void dfs_push(int x){
 	string tree_str = treeNode[x].value;
 	cerr<<x<<" "<<tree_str<<endl;
-	if(tree_str.find("symbol-") != -1){
-		generate("pushq", Ids_table[tree_str].addr, 0);
+	if(tree_str == "Expr"){
+		generate("pushq", treeNode[x].addr, 0);
+		return;
 	}
 	for(auto to : G[x]){
 		if(to < 0) continue;
@@ -334,7 +411,9 @@ void dfs_push(int x){
 
 int dfs_get_func_vb(int x){
 	string tree_str = treeNode[x].value;
-	if(tree_str.find("symbol-") != -1) return Ids_table[tree_str].addr;
+	if(tree_str == "Expr") {
+		return treeNode[x].addr;
+	}
 	for(auto to : G[x]){
 		if(to < 0) continue;
 		int temp = dfs_get_func_vb(to);
@@ -392,7 +471,12 @@ void dfs_expr(int x){
 			generate("movq", "%rax", 1, treeNode[x].addr, 0);
 		} else if(tree_str == "Assign Expr"){
 			generate("movq", b, 0, "%rax", 1);
-			generate("movq", "%rax", 1, a, 0);
+			if(invIds_table.count(a) != 0){
+				generate("movq", "%rax", 1, a, 0);
+			} else {
+				generate("movq", a, 0, "%rbx", 1);
+				generate("movq", "%rax", 1, "(%rbx)", 1);
+			}
 			generate("movq", "%rax", 1, treeNode[x].addr, 0);
 		} else if(tree_str == "Less Expr"){
 			generate("movq", a, 0, "%rax", 1);
@@ -465,6 +549,9 @@ void dfs_expr(int x){
 				generate("call " + get_func_name(G[x][0]));
 				generate("movq", "%rax", 1, treeNode[x].addr, 0);
 			}
+		} else if(tree_str == "Array Expr"){
+			dfs_expr(G[x][1]);
+			Array_Pointer::derive(treeNode[x].type, treeNode[G[x][0]].addr, treeNode[G[x][1]].addr, treeNode[x].addr, treeNode[x].left);
 		}
 	} else {
 		if(son == -1) --TEMP_ID;  treeNode[x].addr = treeNode[G[x][0]].addr;	
@@ -580,6 +667,7 @@ void data_generate(){
 int main() {
 	init_pre_table();
 	yyparse();
+	cerr<<"parse finished"<<endl;
 	dfs_type_error(root, "Type Undefined");
 	//freopen("tree.txt", "w", stdout);
 	//dfs(root, 0);
