@@ -41,6 +41,13 @@ struct Ids{
 	string type;
 	int addr;
 };
+
+struct Types{
+	string type;
+	int sz;
+	map<string, Ids> Ids_table;
+};
+map<string, Types> Types_table;
 map<string, Ids> Ids_table;
 map<int, int> invIds_table;
 int ID_ADDR = 0, LABEL = 0, TEMP_ID = 0, MAX_ID = 0, IS_MAIN;
@@ -64,6 +71,7 @@ void add_edge(int x, vector<int> y){
 }
 %}
 
+%token STRUCT PT
 %token ADD SUB MUL DIV
 %token SL SR BL BR ML MR
 %token ADDRESS AT
@@ -78,11 +86,20 @@ void add_edge(int x, vector<int> y){
 %%
 
 main : main func { $$ = $1; add_edge($$, $2, 0); }
+	 | main struct_declare { $$ = $1; add_edge($$, $2, 0); }
 	 | func { $$ = ++tot; treeNode[tot].value = "Main"; root = tot; add_edge($$, $1, 0); }
+	 | struct_declare { $$ = ++tot; treeNode[tot].value = "Main"; root = tot; add_edge($$, $1, 0); }
 	 ;
+
+struct_declare : struct_type cp_stmt { $$ = ++tot; treeNode[tot].value = "Struct Declare"; add_edge($$, {$1, $2}); }
+			   ;
+
+struct_type : STRUCT ID { $$ = ++tot; treeNode[tot].value = "Type Struct " + get_ID(); }
+		    ;
 
 base_type : INT   { $$ = ++tot; treeNode[tot].value = "Type Int"; }
 	 | base_type MUL { cerr<<"??"<<endl; $$ = ++tot; treeNode[tot].value = "Type@ Int"; }
+	 | struct_type { $$ = ++tot; treeNode[tot].value = treeNode[$1].value; }
 	 ;
 
 type : base_type 	{ $$ = ++tot; treeNode[tot].value = treeNode[$1].value; add_edge($$, $1, 0); }
@@ -183,6 +200,7 @@ rela_expr : rela_expr LESS add_expr { $$ = ++tot; treeNode[tot].value = "Less Ex
 		  ;
 
 assign_expr : ID_ap ASSIGN expr { $$ = ++tot; treeNode[tot].value = "Assign Expr"; add_edge($$, {$1, -'=', $3}); }
+		    | pt_expr ASSIGN expr { $$ = ++tot; treeNode[tot].value = "Assign Expr"; add_edge($$, {$1, -'=', $3}); }
 		    ;
 
 add_expr : add_expr ADD mul_expr { $$ = ++tot; treeNode[tot].value = "Add Expr";  add_edge($$, {$1, -'+', $3}); }
@@ -190,10 +208,14 @@ add_expr : add_expr ADD mul_expr { $$ = ++tot; treeNode[tot].value = "Add Expr";
 		 | mul_expr { $$ = ++tot; treeNode[tot].value = "Add Expr"; add_edge($$, $1, 0); }
 		 ;
 
-mul_expr : mul_expr MUL addr_expr { $$ = ++tot; treeNode[tot].value = "Mul Expr"; add_edge($$, {$1, -'*', $3}); }
-		 | mul_expr DIV addr_expr { $$ = ++tot; treeNode[tot].value = "Div Expr"; add_edge($$, {$1, -'/', $3}); }
-		 | addr_expr {$$ = ++tot; treeNode[tot].value = "Mul Expr"; add_edge($$, $1, 0); }
+mul_expr : mul_expr MUL pt_expr { $$ = ++tot; treeNode[tot].value = "Mul Expr"; add_edge($$, {$1, -'*', $3}); }
+		 | mul_expr DIV pt_expr { $$ = ++tot; treeNode[tot].value = "Div Expr"; add_edge($$, {$1, -'/', $3}); }
+		 | pt_expr {$$ = ++tot; treeNode[tot].value = "Mul Expr"; add_edge($$, $1, 0); }
 		 ;
+
+pt_expr : pt_expr PT ID_ap { $$ = ++tot; treeNode[tot].value = "Pt Expr"; add_edge($$, {$1, $3}); } 
+		| addr_expr { $$ = ++tot; treeNode[tot].value = "Pt Expr"; add_edge($$, $1, 0); }
+		;
 
 addr_expr : ADDRESS at_expr  { $$ = ++tot; treeNode[tot].value = "Addr Expr"; add_edge($$, {-'$', $2}); }
 	      | at_expr  { $$ = ++tot; treeNode[tot].value = "Addr Expr"; add_edge($$, $1, 0); }
@@ -221,6 +243,7 @@ using namespace std;
 map<int, int> sig, sigM;
 
 void dfs_expr(int x);	
+void dfs_ID(int x);
 
 void dfs(int x, int ty){
 	cout<<"(";
@@ -253,7 +276,6 @@ void dfs(int x, int ty){
 	cout<<"Children: ";
 	for(auto to : G[x]) if(to > 0) cout<<to<<" "; cout<<endl;*/
 }
-
 
 
 namespace Generate{
@@ -296,11 +318,102 @@ namespace Generate{
 };
 using namespace Generate;
 
+
+
+namespace Struct{
+	void dfs_pt_get(int x, vector<int> &res){
+		string tree_str = treeNode[x].value;
+		cerr<<x<<" "<<treeNode[x].value<<" "<<G[x].size()<<endl;
+		if(tree_str == "Pt Expr"){
+			for(auto to : G[x]) dfs_pt_get(to, res);
+		} else if(tree_str == "Array Expr"){
+			dfs_pt_get(G[x][0], res);
+		} else {
+			for(auto to : G[x]){
+				if(to < 0) continue;
+				dfs_pt_get(to, res);
+			}
+		}
+		if(tree_str.find("symbol-") != -1) res.push_back(x);
+	}
+	void pre_pt_expr(int x){
+		vector<int> res;
+		dfs_pt_get(x, res);
+		int a = res[0];
+		cerr<<"wtf "<<a<<endl;
+		string type = Ids_table[treeNode[a].value].type;
+		cerr<<type<<endl;
+		for(int i = 1; i < res.size(); i++){
+			int y = res[i];
+			auto table = Types_table[type].Ids_table;
+			type = table[treeNode[y].value].type;
+			cerr<<type<<" "<<treeNode[y].value<<endl;
+			treeNode[y].value = "int-" + to_string(table[treeNode[y].value].addr*8);
+		}
+		cerr<<"---"<<endl;
+	}
+	int calc_size(string type){
+		int sz = 0, k = 1;
+		stringstream ss(type), ss2(""); string temp;
+		ss>>temp; ss2<<temp; ss>>temp; ss2<<" "<<temp; ss>>temp; ss2<<" "<<temp; type = ss2.str();
+		for(auto &_ : Types_table[type].Ids_table){
+			auto &x = _.second;
+			string t = x.type;
+			x.addr = sz;
+			k = 1;
+			if(t.find("@") != -1){
+				sz++;
+				x.addr = sz;
+				continue;
+			}
+			if(t.find("Struct") != -1){
+				k = calc_size(t);
+			}
+			if(t.find("|") != -1){
+				stringstream ss(t);
+				string temp;
+				for(ss>>temp; temp.find("|") == -1; ss>>temp);
+				k *= atoi(temp.substr(1, temp.length()-1).c_str());
+				while(ss>>temp) k *= atoi(temp.substr(1, temp.length()-1).c_str());
+			}
+			sz += k;
+		}
+		return sz;
+	}
+	void dfs_struct_id(int x, string type){
+		string tree_str = treeNode[x].value;
+		auto &T = Types_table[type].Ids_table;
+		if(tree_str.find("symbol-") != -1){
+			T[tree_str].type = treeNode[x].type;
+		}
+		for(auto to : G[x]){
+			if(to < 0) continue;
+			dfs_struct_id(to, type);
+		}
+	}
+	void dfs_struct_declare(int x, string type){
+		cerr<<"declare "<<type<<endl;
+		if(Types_table.count(type) == 0) Types_table[type].type = type;
+		string tree_str = treeNode[x].value;
+		if(tree_str == "ID Stmt"){
+			dfs_struct_id(x, type);
+		} else 
+		for(auto to : G[x]){
+			if(to < 0) continue;
+			dfs_struct_declare(to, type);
+		}
+	}
+}
+
 namespace Array_Pointer{
 	void declare(string type, int addr){
 		stringstream ss(type);
 		string temp; ss>>temp; ss>>temp;
 		int space = 1;
+		if(type.find("Struct") != -1){
+			ss>>temp;
+			space = Struct::calc_size(type);
+		}
 		while(ss>>temp){
 			int x = atoi(temp.substr(1, temp.length()-1).c_str());
 			space *= x;
@@ -342,6 +455,7 @@ void dfs_type_error(int x, string type){
 	}
 	if(tree_str == "ID Stmt"){
 		type = treeNode[G[x][0]].value;
+		cerr<<type<<endl;
 	}
 	if(tree_str == "Function" && G[x][0] != -1){
 		Ids_table[treeNode[G[x][1]].value].type = treeNode[G[x][0]].value;
@@ -354,6 +468,7 @@ void dfs_type_error(int x, string type){
 		if(type != "Type Undefined") Ids_table[tree_str].type = type;
 		treeNode[x].ntype = NTYPE.EXPR;
 		treeNode[x].type = Ids_table[tree_str].type;
+		cerr<<"typeS "<<tree_str<<" "<<Ids_table[tree_str].type<<endl;
 	} else
 	if(tree_str.find("int-") != -1){
 		treeNode[x].ntype = NTYPE.EXPR;
@@ -370,6 +485,7 @@ void dfs_type_error(int x, string type){
 	if(treeNode[x].ntype == NTYPE.EXPR){
 		for(auto to : G[x]){
 			if(to < 0) continue;
+			if(treeNode[to].type.find("Struct") != -1) treeNode[to].type = "Type Int";
 			if(treeNode[x].value == "Array Expr"){
 				if(G[x].size() == 1){
 					treeNode[x].type = treeNode[to].type;
@@ -410,6 +526,8 @@ void dfs_ID(int x){
 		invIds_table[ID_ADDR] = 1;
 		if(Ids_table[tree_str].type.find("|") != -1){
 			Array_Pointer::declare(Ids_table[tree_str].type, ID_ADDR);
+		} else if(Ids_table[tree_str].type.find("@") == -1 && Ids_table[tree_str].type.find("Struct") != -1){
+			Array_Pointer::declare(Ids_table[tree_str].type, ID_ADDR);
 		}
 		cerr<<tree_str<<" "<<8*ID_ADDR<<" "<<Ids_table[tree_str].type<<endl;
 	}
@@ -447,6 +565,12 @@ int dfs_get_func_vb(int x){
 void dfs_expr(int x){
 	string tree_str = treeNode[x].value;
 	int son = -1;
+	if(tree_str == "Pt Expr" && G[x].size() >= 2 && treeNode[pa[x]].value != "Pt Expr"){
+		cerr<<"Start"<<endl;
+		Struct::pre_pt_expr(x);
+		cerr<<"End"<<endl;
+	}
+	cerr<<x<<" "<<treeNode[x].value<<endl;
 	for(auto to : G[x]){
 		if(to < 0) continue;
 		dfs_expr(to);
@@ -463,8 +587,8 @@ void dfs_expr(int x){
 		--TEMP_ID;
 		treeNode[x].addr = Ids_table[tree_str].addr;
 	} else
-	if(tree_str.find("string-") != -1){
-		//treeNode[x].addr = TYPE.T_STRING;
+	if(tree_str.find("strsym-") != -1){
+		generate("movq", "$"+tree_str.substr(7, tree_str.length()-7), 1, treeNode[x].addr, 0);
 	} else
 	if(tree_str.find("float-") != -1){
 		//treeNode[x].addr = TYPE.T_FLOAT;
@@ -577,6 +701,11 @@ void dfs_expr(int x){
 		} else if(tree_str == "Addr Expr"){
 			generate("leaq", treeNode[G[x][1]].addr, 0, "%rax", 1);
 			generate("movq", "%rax", 1, treeNode[x].addr, 0);
+		} else if(tree_str == "Pt Expr"){
+			generate("movq", abs(treeNode[G[x][0]].addr), 0, "%rax", 1);
+			generate("addq", abs(treeNode[G[x][1]].addr), 0, "%rax", 1);
+			generate("movq", "%rax", 1, treeNode[x].addr, 0);
+			if(treeNode[pa[x]].value != "Pt Expr") treeNode[x].addr = -treeNode[x].addr;
 		}
 	} else {
 		if(son == -1) --TEMP_ID;  treeNode[x].addr = treeNode[G[x][0]].addr;	
@@ -674,6 +803,9 @@ void dfs_function(int x){
 		while(outStr.find("@MAX_ID") != -1) outStr.replace(outStr.find("@MAX_ID"), 7, to_string(MAX_ID*8 + 8));
 		cout<<outStr; ssout.str("");
 		
+	} else if(tree_str == "Struct Declare"){
+		dfs_type_error(x, "Type Undefined");
+		Struct::dfs_struct_declare(G[x][1], treeNode[G[x][0]].value);
 	} else {
 		for(auto to : G[x]){
 			if(to < 0) continue;
