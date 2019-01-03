@@ -83,6 +83,7 @@ void add_edge(int x, vector<int> y){
 %token ASSIGN
 %token EQUAL NOTEQUAL LESS LESSORE MORE MOREORE
 %token RETURN 
+%token AND OR NOT 
 %%
 
 main : main func { $$ = $1; add_edge($$, $2, 0); }
@@ -178,7 +179,7 @@ expr_list : expr { $$ = ++tot; treeNode[tot].value = "E List"; add_edge($$, $1, 
 	      | expr_list COMMA expr { $$ = ++tot; treeNode[tot].value = "E List"; add_edge($$, {$1, $3}); }
 	      ;
 
-expr : rela_expr { $$ = ++tot; treeNode[tot].value = "Expr"; add_edge($$, $1, 0); }
+expr : con_expr { $$ = ++tot; treeNode[tot].value = "Expr"; add_edge($$, $1, 0); }
 	 | assign_expr { $$ = ++tot; treeNode[tot].value = "Expr"; add_edge($$, $1, 0); }
 	 | func_expr { $$ = ++tot; treeNode[tot].value = "Expr"; add_edge($$, $1, 0); }
 	 | 		{ $$ = ++tot; treeNode[tot].value = "Blank Expr"; }
@@ -188,6 +189,12 @@ expr : rela_expr { $$ = ++tot; treeNode[tot].value = "Expr"; add_edge($$, $1, 0)
 
 func_expr : ID SL SR { $$ = ++tot; treeNode[tot].value = "Func Call Expr"; $1 = ++tot; treeNode[tot].value = "symbol-" + get_ID(); add_edge($$, {$1, -'(', -')'}); }
 		  | ID SL expr_list SR { $$ = ++tot; treeNode[tot].value = "Func Call Expr"; $1 = ++tot; treeNode[tot].value = "symbol-" + get_ID(); add_edge($$, {$1, $3}); }
+		  ;
+
+con_expr  : rela_expr { $$ = ++tot; treeNode[tot].value = "Con Expr"; add_edge($$, $1, 0); }
+		  | con_expr AND rela_expr { $$ = ++tot; treeNode[tot].value = "And Expr"; add_edge($$, {$1, -'&', $3}); }
+		  | con_expr OR  rela_expr { $$ = ++tot; treeNode[tot].value = "Or Expr"; add_edge($$, {$1, -'|', $3}); }
+		  | NOT con_expr { $$ = ++tot; treeNode[tot].value = "Not Expr"; add_edge($$, {-'!', $2}); }
 		  ;
 
 rela_expr : rela_expr LESS add_expr { $$ = ++tot; treeNode[tot].value = "Less Expr"; add_edge($$, {$1, -'<', $3}); }
@@ -706,6 +713,27 @@ void dfs_expr(int x){
 			generate("addq", abs(treeNode[G[x][1]].addr), 0, "%rax", 1);
 			generate("movq", "%rax", 1, treeNode[x].addr, 0);
 			if(treeNode[pa[x]].value != "Pt Expr") treeNode[x].addr = -treeNode[x].addr;
+		} else if(tree_str == "And Expr"){
+			generate("movq", "$0", 1, "%rax", 1);
+			generate("cmpq", "$0", 1, a, 0);
+			generate("sete", "%al", 1);
+			generate("cmpq", "$0", 1, b, 0);
+			generate("sete", "%al", 1);
+			generate("cmpb", "$0", 1, "%al", 1);
+			generate("sete", "%al", 1);
+			generate("movq", "%rax", 1, treeNode[x].addr, 0);
+		} else if(tree_str == "Or Expr"){
+			generate("movq", "$0", 1, "%rax", 1);
+			generate("cmpq", "$0", 1, a, 0);
+			generate("setne", "%al", 1);
+			generate("cmpq", "$0", 1, b, 0);
+			generate("setne", "%al", 1);
+			generate("movq", "%rax", 1, treeNode[x].addr, 0);
+		} else if(tree_str == "Not Expr"){
+			generate("movq", "$0", 1, "%rax", 1);
+			generate("cmpq", "$0", 1, treeNode[G[x][1]].addr, 0);
+			generate("sete", "%al", 1);
+			generate("movq", "%rax", 1, treeNode[x].addr, 0);
 		}
 	} else {
 		if(son == -1) --TEMP_ID;  treeNode[x].addr = treeNode[G[x][0]].addr;	

@@ -17,7 +17,7 @@ int getValue_8(char *s);
 \&|\$ { cerr<<yytext<<" "<<sign_table[yytext]<<endl; return sign_table[yytext]; }
 \+\+|-- {   return sign_table[yytext]; }
 \<\<|\>\>|\^|\||~ { cerr<<yytext<<" "<<sign_table[yytext]<<endl; return sign_table[yytext]; }
-xor|and|or|not {   return sign_table[yytext]; }
+xor|and|or|not {   cerr<<yytext<<" "<<sign_table[yytext]<<endl; return sign_table[yytext]; }
 &&|\|\||! {   return sign_table[yytext]; }
 \'.\' {  return sign_table[yytext]; }
 
@@ -83,6 +83,9 @@ void init_pre_table(){
     sign_table[">"] = MORE;
     sign_table["<="] = LESSORE;
     sign_table[">="] = MOREORE;
+    sign_table["and"] = AND;
+    sign_table["or"] = OR;
+    sign_table["not"] = NOT;
     /*sign_table["++"] = "INCRE";
     sign_table["--"] = "DECRE";
     sign_table["<<"] = "LEFTSHIFT";
@@ -92,9 +95,6 @@ void init_pre_table(){
     sign_table["&"] = "AND";
     sign_table["~"] = "NOT";
     sign_table["xor"] = "XOR";
-    sign_table["and"] = "AND";
-    sign_table["or"] = "OR";
-    sign_table["not"] = "NOT";
     sign_table["&&"] = "LOGICAND";
     sign_table["||"] = "LOGICOR";
     sign_table["!"] = "LOGICNOT";*/
