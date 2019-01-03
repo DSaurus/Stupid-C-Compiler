@@ -105,7 +105,7 @@ void init_pre_table(){
     //sign_table["return"] = "RETURN";
     sign_table["int"] = INT;
     //sign_table["long"] = "LONG";
-    //sign_table["char"] = CHAR;
+    sign_table["char"] = INT;
     sign_table["string"] = TSTRING;
     sign_table["float"] = FLOAT;
     sign_table["return"] = RETURN;
